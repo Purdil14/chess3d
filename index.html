@@ -1,0 +1,2936 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Purdil Chess 3D</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #02030a;
+            font-family: Arial, sans-serif;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        #ui {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 20;
+
+            padding: 18px 25px;
+            min-width: 280px;
+
+            border: 1px solid #7040ff;
+            border-radius: 18px;
+
+            background: rgba(8, 5, 25, 0.82);
+
+            box-shadow:
+                0 0 25px rgba(105, 55, 255, 0.35);
+
+            backdrop-filter: blur(12px);
+
+            color: white;
+        }
+
+        #title {
+            margin: 0;
+
+            font-size: 25px;
+            font-weight: bold;
+
+            background:
+                linear-gradient(
+                    90deg,
+                    #a66cff,
+                    #39eaff
+                );
+
+            -webkit-background-clip: text;
+            color: transparent;
+        }
+
+        #status {
+            margin-top: 9px;
+            color: #69eaff;
+            font-size: 14px;
+        }
+
+        #loading {
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            background: #02030a;
+
+            color: #69eaff;
+            font-size: 22px;
+        }
+
+        /* GAME OVER */
+
+        #gameOver {
+            position: fixed;
+            inset: 0;
+            z-index: 200;
+
+            display: none;
+
+            align-items: center;
+            justify-content: center;
+
+            background:
+                radial-gradient(
+                    circle,
+                    rgba(75, 25, 150, 0.55),
+                    rgba(2, 3, 10, 0.95)
+                );
+
+            backdrop-filter: blur(8px);
+        }
+
+        .gameOverBox {
+            width: min(90%, 450px);
+
+            padding: 45px 30px;
+
+            text-align: center;
+
+            border-radius: 28px;
+
+            border: 1px solid rgba(120, 80, 255, 0.8);
+
+            background:
+                rgba(10, 7, 30, 0.92);
+
+            box-shadow:
+                0 0 60px rgba(105, 55, 255, 0.5);
+
+            animation:
+                winnerAppear 0.7s ease;
+        }
+
+        .trophy {
+            font-size: 75px;
+
+            animation:
+                trophyAnimation 1.4s infinite alternate;
+        }
+
+        #winnerTitle {
+            margin: 15px 0 8px;
+
+            font-size: 38px;
+
+            background:
+                linear-gradient(
+                    90deg,
+                    #ffd76a,
+                    #ffffff,
+                    #65eaff
+                );
+
+            -webkit-background-clip: text;
+            color: transparent;
+        }
+
+        #winnerText {
+            color: #bcb6d8;
+            margin-bottom: 25px;
+        }
+
+        #newGameButton {
+            padding: 14px 30px;
+
+            border: none;
+            border-radius: 14px;
+
+            cursor: pointer;
+
+            color: white;
+
+            font-size: 16px;
+            font-weight: bold;
+
+            background:
+                linear-gradient(
+                    90deg,
+                    #713cff,
+                    #00c8ff
+                );
+
+            box-shadow:
+                0 0 25px rgba(80, 180, 255, 0.35);
+
+            transition: 0.25s;
+        }
+
+        #newGameButton:hover {
+            transform: scale(1.06);
+
+            box-shadow:
+                0 0 35px rgba(80, 180, 255, 0.65);
+        }
+
+        @keyframes winnerAppear {
+            from {
+                opacity: 0;
+                transform: scale(0.7) translateY(30px);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
+
+        @keyframes trophyAnimation {
+            from {
+                transform: translateY(0) rotate(-4deg);
+            }
+
+            to {
+                transform: translateY(-12px) rotate(4deg);
+            }
+        }
+
+        @media (max-width: 700px) {
+
+            #ui {
+                top: 10px;
+                left: 10px;
+
+                padding: 12px 16px;
+
+                min-width: auto;
+            }
+
+            #title {
+                font-size: 19px;
+            }
+
+            #status {
+                font-size: 12px;
+            }
+        }
+    </style>
+</head>
+
+
+<body>
+
+    <div id="ui">
+
+        <h1 id="title">
+            ♟ PURDIL CHESS
+        </h1>
+
+        <div id="status">
+            Загрузка шахмат...
+        </div>
+
+    </div>
+
+
+    <div id="loading">
+        Загрузка красивых 3D-фигур...
+    </div>
+
+
+    <!-- GAME OVER -->
+
+    <div id="gameOver">
+
+        <div class="gameOverBox">
+
+            <div class="trophy">
+                🏆
+            </div>
+
+            <h1 id="winnerTitle">
+                ПОБЕДА!
+            </h1>
+
+            <div id="winnerText">
+                Игра окончена
+            </div>
+
+            <button
+                id="newGameButton"
+                onclick="newGame()"
+            >
+                НОВАЯ ИГРА
+            </button>
+
+        </div>
+
+    </div>
+
+
+    <script type="importmap">
+
+    {
+        "imports": {
+
+            "three":
+            "https://cdn.jsdelivr.net/npm/three@0.186.0/build/three.module.js",
+
+            "three/addons/":
+            "https://cdn.jsdelivr.net/npm/three@0.186.0/examples/jsm/"
+
+        }
+    }
+
+    </script>
+
+
+    <script type="module">
+
+        import * as THREE
+        from "three";
+
+        import {
+            OrbitControls
+        }
+        from "three/addons/controls/OrbitControls.js";
+
+        import {
+            GLTFLoader
+        }
+        from "three/addons/loaders/GLTFLoader.js";
+
+
+        /* =========================
+           SCENE
+        ========================= */
+
+        const scene =
+            new THREE.Scene();
+
+        scene.background =
+            new THREE.Color(
+                0x02030a
+            );
+
+
+        /* =========================
+           CAMERA
+        ========================= */
+
+        const camera =
+            new THREE.PerspectiveCamera(
+                45,
+                window.innerWidth /
+                window.innerHeight,
+                0.1,
+                100
+            );
+
+        camera.position.set(
+            8,
+            9,
+            10
+        );
+
+
+        /* =========================
+           RENDERER
+        ========================= */
+
+        const renderer =
+            new THREE.WebGLRenderer({
+                antialias: true
+            });
+
+        renderer.setSize(
+            window.innerWidth,
+            window.innerHeight
+        );
+
+        renderer.setPixelRatio(
+            Math.min(
+                window.devicePixelRatio,
+                2
+            )
+        );
+
+        renderer.shadowMap.enabled =
+            true;
+
+        renderer.outputColorSpace =
+            THREE.SRGBColorSpace;
+
+        renderer.toneMapping =
+            THREE.ACESFilmicToneMapping;
+
+        renderer.toneMappingExposure =
+            1.2;
+
+        document.body.appendChild(
+            renderer.domElement
+        );
+
+
+        /* =========================
+           CONTROLS
+        ========================= */
+
+        const controls =
+            new OrbitControls(
+                camera,
+                renderer.domElement
+            );
+
+        controls.enableDamping =
+            true;
+
+        controls.dampingFactor =
+            0.06;
+
+        controls.minDistance =
+            5;
+
+        controls.maxDistance =
+            16;
+
+        controls.maxPolarAngle =
+            Math.PI / 2.05;
+
+        controls.target.set(
+            0,
+            0,
+            0
+        );
+
+
+        /* =========================
+           LIGHTS
+        ========================= */
+
+        const ambient =
+            new THREE.AmbientLight(
+                0xffffff,
+                2.2
+            );
+
+        scene.add(
+            ambient
+        );
+
+
+        const purpleLight =
+            new THREE.PointLight(
+                0x8b4dff,
+                35,
+                25
+            );
+
+        purpleLight.position.set(
+            -5,
+            8,
+            -5
+        );
+
+        purpleLight.castShadow =
+            true;
+
+        scene.add(
+            purpleLight
+        );
+
+
+        const blueLight =
+            new THREE.PointLight(
+                0x24ddff,
+                30,
+                25
+            );
+
+        blueLight.position.set(
+            5,
+            7,
+            5
+        );
+
+        blueLight.castShadow =
+            true;
+
+        scene.add(
+            blueLight
+        );
+
+
+        /* =========================
+           BOARD
+        ========================= */
+
+        const board =
+            new THREE.Group();
+
+        scene.add(
+            board
+        );
+
+
+        const boardBase =
+            new THREE.Mesh(
+
+                new THREE.BoxGeometry(
+                    8.8,
+                    0.35,
+                    8.8
+                ),
+
+                new THREE.MeshStandardMaterial({
+
+                    color:
+                        0x151025,
+
+                    metalness:
+                        0.7,
+
+                    roughness:
+                        0.3,
+
+                    emissive:
+                        0x160b35,
+
+                    emissiveIntensity:
+                        0.4
+                })
+            );
+
+        boardBase.position.y =
+            -0.25;
+
+        boardBase.receiveShadow =
+            true;
+
+        board.add(
+            boardBase
+        );
+
+
+        /* =========================
+           BOARD SQUARES
+        ========================= */
+
+        const squares = [];
+
+
+        for (
+            let row = 0;
+            row < 8;
+            row++
+        ) {
+
+            for (
+                let col = 0;
+                col < 8;
+                col++
+            ) {
+
+                const light =
+                    (row + col) % 2 === 0;
+
+
+                const square =
+                    new THREE.Mesh(
+
+                        new THREE.BoxGeometry(
+                            1,
+                            0.14,
+                            1
+                        ),
+
+                        new THREE.MeshStandardMaterial({
+
+                            color:
+                                light
+                                    ? 0xc4b5df
+                                    : 0x211c35,
+
+                            roughness:
+                                0.32,
+
+                            metalness:
+                                0.15
+                        })
+                    );
+
+
+                square.position.set(
+
+                    col - 3.5,
+
+                    0,
+
+                    row - 3.5
+
+                );
+
+
+                square.userData.col =
+                    col;
+
+                square.userData.row =
+                    row;
+
+                square.receiveShadow =
+                    true;
+
+                board.add(
+                    square
+                );
+
+                squares.push(
+                    square
+                );
+            }
+        }
+
+
+        /* =========================
+           GAME VARIABLES
+        ========================= */
+
+        const pieces = [];
+
+        let boardState =
+            Array.from(
+                {
+                    length: 8
+                },
+
+                () =>
+                    Array(
+                        8
+                    ).fill(null)
+            );
+
+
+        let selectedPiece =
+            null;
+
+        let currentTurn =
+            "W";
+
+        let gameFinished =
+            false;
+
+        let lastMoveSquares = [];
+
+
+        /* =========================
+           SOUND
+        ========================= */
+
+        let audioContext =
+            null;
+
+
+        function startAudio() {
+
+            if (!audioContext) {
+
+                audioContext =
+                    new (
+                        window.AudioContext ||
+                        window.webkitAudioContext
+                    )();
+            }
+
+
+            if (
+                audioContext.state ===
+                "suspended"
+            ) {
+
+                audioContext.resume();
+            }
+        }
+
+
+        function playTone(
+            frequency,
+            duration,
+            type = "sine",
+            volume = 0.08
+        ) {
+
+            startAudio();
+
+
+            const oscillator =
+                audioContext.createOscillator();
+
+            const gain =
+                audioContext.createGain();
+
+
+            oscillator.type =
+                type;
+
+            oscillator.frequency.value =
+                frequency;
+
+
+            gain.gain.setValueAtTime(
+                0.0001,
+                audioContext.currentTime
+            );
+
+
+            gain.gain.exponentialRampToValueAtTime(
+                volume,
+                audioContext.currentTime + 0.01
+            );
+
+
+            gain.gain.exponentialRampToValueAtTime(
+                0.0001,
+                audioContext.currentTime + duration
+            );
+
+
+            oscillator.connect(
+                gain
+            );
+
+            gain.connect(
+                audioContext.destination
+            );
+
+
+            oscillator.start();
+
+
+            oscillator.stop(
+                audioContext.currentTime +
+                duration
+            );
+        }
+
+
+        function playSelectSound() {
+
+            playTone(
+                600,
+                0.08,
+                "sine",
+                0.07
+            );
+
+            setTimeout(
+                () => {
+
+                    playTone(
+                        850,
+                        0.1,
+                        "sine",
+                        0.05
+                    );
+
+                },
+                60
+            );
+        }
+
+
+        function playMoveSound() {
+
+            playTone(
+                420,
+                0.08,
+                "triangle",
+                0.08
+            );
+
+            setTimeout(
+                () => {
+
+                    playTone(
+                        620,
+                        0.1,
+                        "triangle",
+                        0.06
+                    );
+
+                },
+                70
+            );
+        }
+
+
+        function playCaptureSound() {
+
+            playTone(
+                180,
+                0.12,
+                "square",
+                0.08
+            );
+
+            setTimeout(
+                () => {
+
+                    playTone(
+                        110,
+                        0.15,
+                        "sawtooth",
+                        0.05
+                    );
+
+                },
+                80
+            );
+        }
+
+
+        function playVictorySound() {
+
+            const notes = [
+                523,
+                659,
+                784,
+                1046
+            ];
+
+
+            notes.forEach(
+                (note, index) => {
+
+                    setTimeout(
+                        () => {
+
+                            playTone(
+                                note,
+                                0.35,
+                                "triangle",
+                                0.1
+                            );
+
+                        },
+                        index * 160
+                    );
+                }
+            );
+        }
+
+
+        /* =========================
+           LOAD GLB
+        ========================= */
+
+        const loader =
+            new GLTFLoader();
+
+
+        loader.load(
+
+            "./Models/ABeautifulGame.glb",
+
+            gltf => {
+
+                const root =
+                    gltf.scene;
+
+                root.updateMatrixWorld(
+                    true
+                );
+
+
+                createAllPieces(
+                    root
+                );
+
+
+                root.visible =
+                    false;
+
+
+                document.getElementById(
+                    "loading"
+                ).style.display =
+                    "none";
+
+
+                setStatus(
+                    "Белые ходят — выбери фигуру"
+                );
+            },
+
+
+            xhr => {
+
+                if (xhr.total) {
+
+                    const percent =
+                        Math.round(
+                            xhr.loaded /
+                            xhr.total *
+                            100
+                        );
+
+
+                    document.getElementById(
+                        "loading"
+                    ).textContent =
+                        "Загрузка: " +
+                        percent +
+                        "%";
+                }
+            },
+
+
+            error => {
+
+                console.error(
+                    error
+                );
+
+
+                document.getElementById(
+                    "loading"
+                ).textContent =
+                    "Ошибка загрузки GLB";
+            }
+        );
+
+
+        /* =========================
+           CREATE PIECES
+        ========================= */
+
+        function createAllPieces(
+            root
+        ) {
+
+            for (
+                let i = 1;
+                i <= 8;
+                i++
+            ) {
+
+                createPawn(
+                    root,
+                    "W",
+                    i,
+                    i - 1,
+                    1
+                );
+
+                createPawn(
+                    root,
+                    "B",
+                    i,
+                    i - 1,
+                    6
+                );
+            }
+
+
+            createNormalPiece(
+                root,
+                "rook",
+                "W",
+                1,
+                0,
+                0
+            );
+
+            createNormalPiece(
+                root,
+                "knight",
+                "W",
+                1,
+                1,
+                0
+            );
+
+            createNormalPiece(
+                root,
+                "bishop",
+                "W",
+                1,
+                2,
+                0
+            );
+
+            createNormalPiece(
+                root,
+                "queen",
+                "W",
+                0,
+                3,
+                0
+            );
+
+            createNormalPiece(
+                root,
+                "king",
+                "W",
+                0,
+                4,
+                0
+            );
+
+            createNormalPiece(
+                root,
+                "bishop",
+                "W",
+                2,
+                5,
+                0
+            );
+
+            createNormalPiece(
+                root,
+                "knight",
+                "W",
+                2,
+                6,
+                0
+            );
+
+            createNormalPiece(
+                root,
+                "rook",
+                "W",
+                2,
+                7,
+                0
+            );
+
+
+            createNormalPiece(
+                root,
+                "rook",
+                "B",
+                1,
+                0,
+                7
+            );
+
+            createNormalPiece(
+                root,
+                "knight",
+                "B",
+                1,
+                1,
+                7
+            );
+
+            createNormalPiece(
+                root,
+                "bishop",
+                "B",
+                1,
+                2,
+                7
+            );
+
+            createNormalPiece(
+                root,
+                "queen",
+                "B",
+                0,
+                3,
+                7
+            );
+
+            createNormalPiece(
+                root,
+                "king",
+                "B",
+                0,
+                4,
+                7
+            );
+
+            createNormalPiece(
+                root,
+                "bishop",
+                "B",
+                2,
+                5,
+                7
+            );
+
+            createNormalPiece(
+                root,
+                "knight",
+                "B",
+                2,
+                6,
+                7
+            );
+
+            createNormalPiece(
+                root,
+                "rook",
+                "B",
+                2,
+                7,
+                7
+            );
+        }
+
+
+        /* =========================
+           CLONE GLB
+        ========================= */
+
+        function cloneAsLocalMesh(
+            original
+        ) {
+
+            original.updateWorldMatrix(
+                true,
+                true
+            );
+
+
+            const group =
+                new THREE.Group();
+
+
+            original.traverse(
+                child => {
+
+                    if (
+                        !child.isMesh
+                    ) {
+                        return;
+                    }
+
+
+                    const geometry =
+                        child.geometry.clone();
+
+
+                    geometry.applyMatrix4(
+                        child.matrixWorld
+                    );
+
+
+                    let material;
+
+
+                    if (
+                        Array.isArray(
+                            child.material
+                        )
+                    ) {
+
+                        material =
+                            child.material.map(
+                                m =>
+                                    m.clone()
+                            );
+
+                    } else {
+
+                        material =
+                            child.material.clone();
+                    }
+
+
+                    const mesh =
+                        new THREE.Mesh(
+                            geometry,
+                            material
+                        );
+
+
+                    mesh.castShadow =
+                        true;
+
+                    mesh.receiveShadow =
+                        true;
+
+
+                    group.add(
+                        mesh
+                    );
+                }
+            );
+
+
+            return group;
+        }
+
+
+        /* =========================
+           PAWN
+        ========================= */
+
+        function createPawn(
+            root,
+            color,
+            number,
+            col,
+            row
+        ) {
+
+            const group =
+                new THREE.Group();
+
+
+            group.userData.type =
+                "pawn";
+
+            group.userData.color =
+                color;
+
+            group.userData.col =
+                col;
+
+            group.userData.row =
+                row;
+
+            group.userData.moved =
+                false;
+
+
+            const body =
+                root.getObjectByName(
+                    `Pawn_Body_${color}${number}`
+                );
+
+
+            const top =
+                root.getObjectByName(
+                    `Pawn_Top_${color}${number}`
+                );
+
+
+            if (body) {
+
+                group.add(
+                    cloneAsLocalMesh(
+                        body
+                    )
+                );
+            }
+
+
+            if (top) {
+
+                group.add(
+                    cloneAsLocalMesh(
+                        top
+                    )
+                );
+            }
+
+
+            preparePiece(
+                group,
+                col,
+                row
+            );
+        }
+
+
+        /* =========================
+           NORMAL PIECE
+        ========================= */
+
+        function createNormalPiece(
+            root,
+            type,
+            color,
+            number,
+            col,
+            row
+        ) {
+
+            const group =
+                new THREE.Group();
+
+
+            group.userData.type =
+                type;
+
+            group.userData.color =
+                color;
+
+            group.userData.col =
+                col;
+
+            group.userData.row =
+                row;
+
+            group.userData.moved =
+                false;
+
+
+            let name = "";
+
+
+            if (
+                type === "king"
+            ) {
+                name =
+                    `King_${color}`;
+            }
+
+            if (
+                type === "queen"
+            ) {
+                name =
+                    `Queen_${color}`;
+            }
+
+            if (
+                type === "rook"
+            ) {
+                name =
+                    `Castle_${color}${number}`;
+            }
+
+            if (
+                type === "knight"
+            ) {
+                name =
+                    `Knight_${color}${number}`;
+            }
+
+            if (
+                type === "bishop"
+            ) {
+                name =
+                    `Bishop_${color}${number}`;
+            }
+
+
+            const object =
+                root.getObjectByName(
+                    name
+                );
+
+
+            if (object) {
+
+                group.add(
+                    cloneAsLocalMesh(
+                        object
+                    )
+                );
+            }
+
+
+            preparePiece(
+                group,
+                col,
+                row
+            );
+        }
+
+
+        /* =========================
+           PREPARE PIECE
+        ========================= */
+
+        function preparePiece(
+            group,
+            col,
+            row
+        ) {
+
+            scene.add(
+                group
+            );
+
+
+            pieces.push(
+                group
+            );
+
+
+            group.updateMatrixWorld(
+                true
+            );
+
+
+            const box =
+                new THREE.Box3()
+                    .setFromObject(
+                        group
+                    );
+
+
+            const center =
+                new THREE.Vector3();
+
+
+            const size =
+                new THREE.Vector3();
+
+
+            box.getCenter(
+                center
+            );
+
+
+            box.getSize(
+                size
+            );
+
+
+            group.children.forEach(
+                child => {
+
+                    child.position.x -=
+                        center.x;
+
+                    child.position.y -=
+                        center.y;
+
+                    child.position.z -=
+                        center.z;
+                }
+            );
+
+
+            group.updateMatrixWorld(
+                true
+            );
+
+
+            const centeredBox =
+                new THREE.Box3()
+                    .setFromObject(
+                        group
+                    );
+
+
+            const centeredSize =
+                new THREE.Vector3();
+
+
+            centeredBox.getSize(
+                centeredSize
+            );
+
+
+            let targetHeight =
+                1.15;
+
+
+            if (
+                group.userData.type ===
+                "rook"
+            ) {
+                targetHeight =
+                    1.45;
+            }
+
+            if (
+                group.userData.type ===
+                "knight"
+            ) {
+                targetHeight =
+                    1.35;
+            }
+
+            if (
+                group.userData.type ===
+                "bishop"
+            ) {
+                targetHeight =
+                    1.40;
+            }
+
+            if (
+                group.userData.type ===
+                "queen"
+            ) {
+                targetHeight =
+                    1.55;
+            }
+
+            if (
+                group.userData.type ===
+                "king"
+            ) {
+                targetHeight =
+                    1.70;
+            }
+
+
+            if (
+                centeredSize.y > 0
+            ) {
+
+                const scale =
+                    targetHeight /
+                    centeredSize.y;
+
+
+                group.scale.set(
+                    scale,
+                    scale,
+                    scale
+                );
+            }
+
+
+            group.position.set(
+
+                col - 3.5,
+
+                0.68,
+
+                row - 3.5
+            );
+
+
+            boardState[row][col] =
+                group;
+        }
+
+
+        /* =========================
+           SELECT
+        ========================= */
+
+        function selectPiece(
+            piece
+        ) {
+
+            if (
+                gameFinished
+            ) {
+                return;
+            }
+
+
+            if (
+                piece.userData.color !==
+                currentTurn
+            ) {
+
+                setStatus(
+
+                    currentTurn === "W"
+                        ? "Сейчас ходят белые"
+                        : "Сейчас ходят чёрные"
+
+                );
+
+                return;
+            }
+
+
+            clearSelection();
+
+
+            selectedPiece =
+                piece;
+
+
+            highlightPiece(
+                piece,
+                true
+            );
+
+
+            showLegalMoves(
+                piece
+            );
+
+
+            playSelectSound();
+
+
+            setStatus(
+                pieceName(piece) +
+                " выбрана"
+            );
+        }
+
+
+        /* =========================
+           NAME
+        ========================= */
+
+        function pieceName(
+            piece
+        ) {
+
+            const names = {
+
+                pawn:
+                    "Пешка",
+
+                rook:
+                    "Ладья",
+
+                knight:
+                    "Конь",
+
+                bishop:
+                    "Слон",
+
+                queen:
+                    "Ферзь",
+
+                king:
+                    "Король"
+            };
+
+
+            return (
+                piece.userData.color ===
+                "W"
+                    ? "Белая "
+                    : "Чёрная "
+            )
+            +
+            names[
+                piece.userData.type
+            ];
+        }
+
+
+        /* =========================
+           HIGHLIGHT PIECE
+        ========================= */
+
+        function highlightPiece(
+            piece,
+            active
+        ) {
+
+            piece.traverse(
+                object => {
+
+                    if (
+                        !object.isMesh ||
+                        !object.material
+                    ) {
+                        return;
+                    }
+
+
+                    const materials =
+                        Array.isArray(
+                            object.material
+                        )
+                            ? object.material
+                            : [
+                                object.material
+                            ];
+
+
+                    materials.forEach(
+                        material => {
+
+                            if (
+                                material.emissive
+                            ) {
+
+                                if (
+                                    active
+                                ) {
+
+                                    material.emissive.set(
+                                        0x19dfff
+                                    );
+
+                                    material.emissiveIntensity =
+                                        0.9;
+
+                                } else {
+
+                                    material.emissive.set(
+                                        0x000000
+                                    );
+
+                                    material.emissiveIntensity =
+                                        0;
+                                }
+                            }
+                        }
+                    );
+                }
+            );
+        }
+
+
+        /* =========================
+           LEGAL MOVES
+        ========================= */
+
+        function showLegalMoves(
+            piece
+        ) {
+
+            clearMoveHighlights();
+
+
+            const row =
+                piece.userData.row;
+
+            const col =
+                piece.userData.col;
+
+
+            if (
+                piece.userData.type ===
+                "pawn"
+            ) {
+
+                showPawnMoves(
+                    piece,
+                    row,
+                    col
+                );
+
+                return;
+            }
+
+
+            if (
+                piece.userData.type ===
+                "rook"
+            ) {
+
+                showSlidingMoves(
+                    piece,
+                    row,
+                    col,
+
+                    [
+                        [1, 0],
+                        [-1, 0],
+                        [0, 1],
+                        [0, -1]
+                    ]
+                );
+
+                return;
+            }
+
+
+            if (
+                piece.userData.type ===
+                "bishop"
+            ) {
+
+                showSlidingMoves(
+                    piece,
+                    row,
+                    col,
+
+                    [
+                        [1, 1],
+                        [1, -1],
+                        [-1, 1],
+                        [-1, -1]
+                    ]
+                );
+
+                return;
+            }
+
+
+            if (
+                piece.userData.type ===
+                "queen"
+            ) {
+
+                showSlidingMoves(
+                    piece,
+                    row,
+                    col,
+
+                    [
+                        [1, 0],
+                        [-1, 0],
+                        [0, 1],
+                        [0, -1],
+
+                        [1, 1],
+                        [1, -1],
+                        [-1, 1],
+                        [-1, -1]
+                    ]
+                );
+
+                return;
+            }
+
+
+            if (
+                piece.userData.type ===
+                "knight"
+            ) {
+
+                const moves = [
+
+                    [2, 1],
+                    [2, -1],
+
+                    [-2, 1],
+                    [-2, -1],
+
+                    [1, 2],
+                    [1, -2],
+
+                    [-1, 2],
+                    [-1, -2]
+                ];
+
+
+                moves.forEach(
+                    move => {
+
+                        tryHighlight(
+                            piece,
+
+                            col +
+                            move[1],
+
+                            row +
+                            move[0]
+                        );
+                    }
+                );
+
+                return;
+            }
+
+
+            if (
+                piece.userData.type ===
+                "king"
+            ) {
+
+                for (
+                    let dr = -1;
+                    dr <= 1;
+                    dr++
+                ) {
+
+                    for (
+                        let dc = -1;
+                        dc <= 1;
+                        dc++
+                    ) {
+
+                        if (
+                            dr === 0 &&
+                            dc === 0
+                        ) {
+                            continue;
+                        }
+
+
+                        tryHighlight(
+                            piece,
+
+                            col + dc,
+
+                            row + dr
+                        );
+                    }
+                }
+            }
+        }
+
+
+        /* =========================
+           PAWN MOVES
+        ========================= */
+
+        function showPawnMoves(
+            piece,
+            row,
+            col
+        ) {
+
+            const direction =
+                piece.userData.color === "W"
+                    ? 1
+                    : -1;
+
+
+            const one =
+                row + direction;
+
+
+            if (
+                inside(
+                    col,
+                    one
+                )
+                &&
+                !boardState[one][col]
+            ) {
+
+                highlightSquare(
+                    col,
+                    one
+                );
+
+
+                const two =
+                    row +
+                    direction * 2;
+
+
+                if (
+                    !piece.userData.moved
+                    &&
+                    inside(
+                        col,
+                        two
+                    )
+                    &&
+                    !boardState[two][col]
+                ) {
+
+                    highlightSquare(
+                        col,
+                        two
+                    );
+                }
+            }
+
+
+            for (
+                const dc of [-1, 1]
+            ) {
+
+                const targetCol =
+                    col + dc;
+
+
+                if (
+                    !inside(
+                        targetCol,
+                        one
+                    )
+                ) {
+                    continue;
+                }
+
+
+                const target =
+                    boardState[
+                        one
+                    ][
+                        targetCol
+                    ];
+
+
+                if (
+                    target
+                    &&
+                    target.userData.color !==
+                    piece.userData.color
+                ) {
+
+                    highlightSquare(
+                        targetCol,
+                        one
+                    );
+                }
+            }
+        }
+
+
+        /* =========================
+           SLIDING
+        ========================= */
+
+        function showSlidingMoves(
+            piece,
+            row,
+            col,
+            directions
+        ) {
+
+            directions.forEach(
+                direction => {
+
+                    const dr =
+                        direction[0];
+
+                    const dc =
+                        direction[1];
+
+
+                    let r =
+                        row + dr;
+
+                    let c =
+                        col + dc;
+
+
+                    while (
+                        inside(
+                            c,
+                            r
+                        )
+                    ) {
+
+                        const target =
+                            boardState[r][c];
+
+
+                        if (!target) {
+
+                            highlightSquare(
+                                c,
+                                r
+                            );
+
+                        } else {
+
+                            if (
+                                target.userData.color !==
+                                piece.userData.color
+                            ) {
+
+                                highlightSquare(
+                                    c,
+                                    r
+                                );
+                            }
+
+
+                            break;
+                        }
+
+
+                        r += dr;
+                        c += dc;
+                    }
+                }
+            );
+        }
+
+
+        /* =========================
+           TRY HIGHLIGHT
+        ========================= */
+
+        function tryHighlight(
+            piece,
+            col,
+            row
+        ) {
+
+            if (
+                !inside(
+                    col,
+                    row
+                )
+            ) {
+                return;
+            }
+
+
+            const target =
+                boardState[row][col];
+
+
+            if (
+                !target
+                ||
+                target.userData.color !==
+                piece.userData.color
+            ) {
+
+                highlightSquare(
+                    col,
+                    row
+                );
+            }
+        }
+
+
+        /* =========================
+           HIGHLIGHT SQUARE
+        ========================= */
+
+        function highlightSquare(
+            col,
+            row
+        ) {
+
+            const square =
+                getSquare(
+                    col,
+                    row
+                );
+
+
+            if (!square) {
+                return;
+            }
+
+
+            square.userData.originalColor =
+                square.material.color.clone();
+
+
+            square.material.color.set(
+                0x15eaff
+            );
+
+
+            square.userData.highlighted =
+                true;
+        }
+
+
+        /* =========================
+           CLEAR MOVES
+        ========================= */
+
+        function clearMoveHighlights() {
+
+            squares.forEach(
+                square => {
+
+                    if (
+                        square.userData.highlighted
+                    ) {
+
+                        square.material.color.copy(
+                            square.userData.originalColor
+                        );
+
+
+                        square.userData.highlighted =
+                            false;
+                    }
+                }
+            );
+        }
+
+
+        /* =========================
+           CLEAR SELECTION
+        ========================= */
+
+        function clearSelection() {
+
+            if (
+                selectedPiece
+            ) {
+
+                highlightPiece(
+                    selectedPiece,
+                    false
+                );
+            }
+
+
+            clearMoveHighlights();
+
+
+            selectedPiece =
+                null;
+        }
+
+
+        /* =========================
+           MOVE
+        ========================= */
+
+        function movePiece(
+            piece,
+            col,
+            row
+        ) {
+
+            const oldCol =
+                piece.userData.col;
+
+            const oldRow =
+                piece.userData.row;
+
+
+            const target =
+                boardState[row][col];
+
+
+            if (
+                target
+                &&
+                target.userData.color ===
+                piece.userData.color
+            ) {
+
+                return false;
+            }
+
+
+            if (target) {
+
+                scene.remove(
+                    target
+                );
+
+
+                const index =
+                    pieces.indexOf(
+                        target
+                    );
+
+
+                if (
+                    index !== -1
+                ) {
+
+                    pieces.splice(
+                        index,
+                        1
+                    );
+                }
+
+
+                playCaptureSound();
+
+
+                if (
+                    target.userData.type ===
+                    "king"
+                ) {
+
+                    boardState[row][col] =
+                        null;
+
+
+                    finishGame(
+                        piece.userData.color
+                    );
+
+
+                    return true;
+                }
+
+            } else {
+
+                playMoveSound();
+            }
+
+
+            boardState[
+                oldRow
+            ][oldCol] =
+                null;
+
+
+            boardState[
+                row
+            ][col] =
+                piece;
+
+
+            piece.userData.col =
+                col;
+
+            piece.userData.row =
+                row;
+
+            piece.userData.moved =
+                true;
+
+
+            highlightLastMove(
+                oldCol,
+                oldRow,
+                col,
+                row
+            );
+
+
+            animatePiece(
+                piece,
+                col,
+                row
+            );
+
+
+            currentTurn =
+                currentTurn === "W"
+                    ? "B"
+                    : "W";
+
+
+            return true;
+        }
+
+
+        /* =========================
+           LAST MOVE
+        ========================= */
+
+        function highlightLastMove(
+            oldCol,
+            oldRow,
+            newCol,
+            newRow
+        ) {
+
+            clearLastMove();
+
+
+            const first =
+                getSquare(
+                    oldCol,
+                    oldRow
+                );
+
+
+            const second =
+                getSquare(
+                    newCol,
+                    newRow
+                );
+
+
+            [first, second]
+                .forEach(
+                    square => {
+
+                        if (!square) {
+                            return;
+                        }
+
+
+                        square.userData.lastMoveColor =
+                            square.material.color.clone();
+
+
+                        square.material.color.lerp(
+                            new THREE.Color(
+                                0xffd84d
+                            ),
+                            0.5
+                        );
+
+
+                        lastMoveSquares.push(
+                            square
+                        );
+                    }
+                );
+        }
+
+
+        function clearLastMove() {
+
+            lastMoveSquares.forEach(
+                square => {
+
+                    if (
+                        square.userData.lastMoveColor
+                    ) {
+
+                        square.material.color.copy(
+                            square.userData.lastMoveColor
+                        );
+                    }
+                }
+            );
+
+
+            lastMoveSquares = [];
+        }
+
+
+        /* =========================
+           ANIMATION
+        ========================= */
+
+        function animatePiece(
+            piece,
+            col,
+            row
+        ) {
+
+            const start =
+                piece.position.clone();
+
+
+            const end =
+                new THREE.Vector3(
+
+                    col - 3.5,
+
+                    0.68,
+
+                    row - 3.5
+                );
+
+
+            const startTime =
+                performance.now();
+
+
+            const duration =
+                400;
+
+
+            function animateMove(
+                now
+            ) {
+
+                const progress =
+                    Math.min(
+
+                        (now - startTime) /
+                        duration,
+
+                        1
+                    );
+
+
+                const smooth =
+                    progress *
+                    (2 - progress);
+
+
+                piece.position.lerpVectors(
+                    start,
+                    end,
+                    smooth
+                );
+
+
+                piece.position.y =
+                    0.68
+                    +
+                    Math.sin(
+                        progress *
+                        Math.PI
+                    )
+                    *
+                    0.22;
+
+
+                if (
+                    progress < 1
+                ) {
+
+                    requestAnimationFrame(
+                        animateMove
+                    );
+
+                } else {
+
+                    piece.position.copy(
+                        end
+                    );
+                }
+            }
+
+
+            requestAnimationFrame(
+                animateMove
+            );
+        }
+
+
+        /* =========================
+           GAME OVER
+        ========================= */
+
+        function finishGame(
+            winner
+        ) {
+
+            gameFinished =
+                true;
+
+
+            clearSelection();
+
+
+            playVictorySound();
+
+
+            const winnerName =
+                winner === "W"
+                    ? "БЕЛЫЕ ПОБЕДИЛИ!"
+                    : "ЧЁРНЫЕ ПОБЕДИЛИ!";
+
+
+            document.getElementById(
+                "winnerTitle"
+            ).textContent =
+                winnerName;
+
+
+            document.getElementById(
+                "winnerText"
+            ).textContent =
+                "Поздравляем! Партия завершена.";
+
+
+            document.getElementById(
+                "gameOver"
+            ).style.display =
+                "flex";
+
+
+            setStatus(
+                "🏆 Партия завершена"
+            );
+        }
+
+
+        window.newGame =
+            function () {
+
+                location.reload();
+
+            };
+
+
+        /* =========================
+           RAYCASTER
+        ========================= */
+
+        const raycaster =
+            new THREE.Raycaster();
+
+
+        const mouse =
+            new THREE.Vector2();
+
+
+        /* =========================
+           CLICK
+        ========================= */
+
+        renderer.domElement.addEventListener(
+            "pointerdown",
+
+            event => {
+
+                if (
+                    gameFinished
+                ) {
+                    return;
+                }
+
+
+                startAudio();
+
+
+                mouse.x =
+                    (
+                        event.clientX /
+                        window.innerWidth
+                    )
+                    *
+                    2
+                    -
+                    1;
+
+
+                mouse.y =
+                    -(
+                        event.clientY /
+                        window.innerHeight
+                    )
+                    *
+                    2
+                    +
+                    1;
+
+
+                raycaster.setFromCamera(
+                    mouse,
+                    camera
+                );
+
+
+                /* =====================
+                   СНАЧАЛА ФИГУРЫ
+                ===================== */
+
+                const pieceMeshes = [];
+
+
+                pieces.forEach(
+                    piece => {
+
+                        piece.traverse(
+                            object => {
+
+                                if (
+                                    object.isMesh
+                                ) {
+
+                                    object.userData.chessPiece =
+                                        piece;
+
+
+                                    pieceMeshes.push(
+                                        object
+                                    );
+                                }
+                            }
+                        );
+                    }
+                );
+
+
+                const pieceHits =
+                    raycaster.intersectObjects(
+                        pieceMeshes,
+                        true
+                    );
+
+
+                /*
+                 * Если нажали на фигуру,
+                 * обрабатываем именно её.
+                 */
+
+                if (
+                    pieceHits.length > 0
+                ) {
+
+                    const clickedPiece =
+                        pieceHits[0]
+                            .object
+                            .userData
+                            .chessPiece;
+
+
+                    if (
+                        !clickedPiece
+                    ) {
+                        return;
+                    }
+
+
+                    /*
+                     * Если уже выбрана своя фигура
+                     * и нажали на фигуру противника,
+                     * выполняем ВЗЯТИЕ.
+                     */
+
+                    if (
+                        selectedPiece
+                        &&
+                        clickedPiece.userData.color !==
+                        selectedPiece.userData.color
+                    ) {
+
+                        const targetCol =
+                            clickedPiece.userData.col;
+
+
+                        const targetRow =
+                            clickedPiece.userData.row;
+
+
+                        const targetSquare =
+                            getSquare(
+                                targetCol,
+                                targetRow
+                            );
+
+
+                        /*
+                         * Проверяем, что эта фигура
+                         * действительно доступна для взятия.
+                         */
+
+                        if (
+                            targetSquare &&
+                            targetSquare.userData.highlighted
+                        ) {
+
+                            const success =
+                                movePiece(
+
+                                    selectedPiece,
+
+                                    targetCol,
+
+                                    targetRow
+                                );
+
+
+                            if (
+                                success
+                            ) {
+
+                                clearSelection();
+                            }
+
+
+                            return;
+                        }
+
+
+                        return;
+                    }
+
+
+                    /*
+                     * Если нажали на свою фигуру —
+                     * выбираем её.
+                     */
+
+                    if (
+                        clickedPiece.userData.color ===
+                        currentTurn
+                    ) {
+
+                        selectPiece(
+                            clickedPiece
+                        );
+
+                    } else {
+
+                        setStatus(
+                            currentTurn === "W"
+                                ? "Сейчас ходят белые"
+                                : "Сейчас ходят чёрные"
+                        );
+                    }
+
+
+                    return;
+                }
+
+
+                /* =====================
+                   ПОТОМ КЛЕТКИ
+                ===================== */
+
+                if (
+                    selectedPiece
+                ) {
+
+                    const squareHits =
+                        raycaster.intersectObjects(
+                            squares,
+                            false
+                        );
+
+
+                    if (
+                        squareHits.length > 0
+                    ) {
+
+                        const square =
+                            squareHits[0]
+                                .object;
+
+
+                        /*
+                         * Клетка должна быть
+                         * разрешённым местом хода.
+                         */
+
+                        if (
+                            square.userData.highlighted
+                        ) {
+
+                            /*
+                             * На всякий случай
+                             * не разрешаем ход через
+                             * занятую фигуру.
+                             */
+
+                            const target =
+                                boardState[
+                                    square.userData.row
+                                ][
+                                    square.userData.col
+                                ];
+
+
+                            if (!target) {
+
+                                const success =
+                                    movePiece(
+
+                                        selectedPiece,
+
+                                        square.userData.col,
+
+                                        square.userData.row
+                                    );
+
+
+                                if (
+                                    success
+                                ) {
+
+                                    clearSelection();
+                                }
+                            }
+                        }
+                    }
+                }
+
+            }
+        );
+
+
+        /* =========================
+           HELPERS
+        ========================= */
+
+        function getSquare(
+            col,
+            row
+        ) {
+
+            return squares.find(
+                square =>
+
+                    square.userData.col ===
+                    col
+
+                    &&
+
+                    square.userData.row ===
+                    row
+            );
+        }
+
+
+        function inside(
+            col,
+            row
+        ) {
+
+            return (
+
+                col >= 0
+                &&
+                col < 8
+                &&
+                row >= 0
+                &&
+                row < 8
+
+            );
+        }
+
+
+        function setStatus(
+            text
+        ) {
+
+            document.getElementById(
+                "status"
+            ).textContent =
+                text;
+        }
+
+
+        /* =========================
+           RESIZE
+        ========================= */
+
+        window.addEventListener(
+            "resize",
+
+            () => {
+
+                camera.aspect =
+                    window.innerWidth /
+                    window.innerHeight;
+
+
+                camera.updateProjectionMatrix();
+
+
+                renderer.setSize(
+                    window.innerWidth,
+                    window.innerHeight
+                );
+            }
+        );
+
+
+        /* =========================
+           ANIMATION
+        ========================= */
+
+        const clock =
+            new THREE.Clock();
+
+
+        function animate() {
+
+            requestAnimationFrame(
+                animate
+            );
+
+
+            const time =
+                clock.getElapsedTime();
+
+
+            purpleLight.intensity =
+                35
+                +
+                Math.sin(
+                    time * 2
+                )
+                *
+                5;
+
+
+            blueLight.intensity =
+                30
+                +
+                Math.cos(
+                    time * 2
+                )
+                *
+                5;
+
+
+            controls.update();
+
+
+            renderer.render(
+                scene,
+                camera
+            );
+        }
+
+
+        animate();
+
+    </script>
+
+</body>
+
+</html>
